@@ -11,3 +11,7 @@ This is a bare isolation SDK — import any SDK you want afterwards.
 // use any SDK you want:
 #:sdk ...
 ```
+
+## See also
+
+- [Isolated.NET.Sdk](https://www.nuget.org/packages/Isolated.NET.Sdk) — an isolation SDK that implicitly imports `Microsoft.NET.Sdk` (the default SDK).
