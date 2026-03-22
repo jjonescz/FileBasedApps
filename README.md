@@ -8,7 +8,7 @@ Utilities for file-based apps.
 
 MSBuild SDKs for isolating file-based apps from `Directory.Build.props` and `Directory.Build.targets`.
 
-#### Isolated.NET.Sdk
+#### [Isolated.NET.Sdk](https://www.nuget.org/packages/Isolated.NET.Sdk)
 
 Sets `ImportDirectoryBuildProps` and `ImportDirectoryBuildTargets` to `false`.
 Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
@@ -17,7 +17,7 @@ Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 #:sdk Isolated.NET.Sdk
 ```
 
-#### Isolated.Sdk
+#### [Isolated.Sdk](https://www.nuget.org/packages/Isolated.Sdk)
 
 A bare isolation SDK. Import any SDK you want afterwards.
 
