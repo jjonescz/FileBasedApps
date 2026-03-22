@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <RepositoryUrl>https://github.com/jjonescz/FileBasedApps</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>© Jan Jones</Copyright>
+    <PackageTags>file-based-apps</PackageTags>
+  </PropertyGroup>
+</Project>

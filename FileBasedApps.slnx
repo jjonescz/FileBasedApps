@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Isolated.NET.Sdk/Isolated.NET.Sdk.csproj" />
+    <Project Path="src/Isolated.Sdk/Isolated.Sdk.csproj" />
+  </Folder>
+</Solution>
