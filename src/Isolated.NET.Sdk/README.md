@@ -6,5 +6,5 @@ while implicitly importing `Microsoft.NET.Sdk` (the default SDK).
 ## Usage
 
 ```cs
-#:sdk Isolated.NET.Sdk
+#:sdk Isolated.NET.Sdk@0.0.1
 ```
