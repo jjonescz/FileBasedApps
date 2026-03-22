@@ -7,7 +7,7 @@ This is a bare isolation SDK — import any SDK you want afterwards.
 ## Usage
 
 ```cs
-#:sdk Isolated.Sdk@0.0.1
+#:sdk Isolated.Sdk@1.0.0
 // use any SDK you want:
 #:sdk ...
 ```

@@ -14,7 +14,7 @@ Sets `ImportDirectoryBuildProps` and `ImportDirectoryBuildTargets` to `false`.
 Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 
 ```cs
-#:sdk Isolated.NET.Sdk@0.0.1
+#:sdk Isolated.NET.Sdk@1.0.0
 ```
 
 #### [Isolated.Sdk](https://www.nuget.org/packages/Isolated.Sdk)
@@ -22,7 +22,7 @@ Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 A bare isolation SDK. Import any SDK you want afterwards.
 
 ```cs
-#:sdk Isolated.Sdk@0.0.1
+#:sdk Isolated.Sdk@1.0.0
 // use any SDK you want:
 #:sdk ...
 ```
@@ -31,6 +31,16 @@ A bare isolation SDK. Import any SDK you want afterwards.
 
 ```powershell
 $version='<the next version here (without v prefix)>'
+
+# update version in samples and package READMEs
+$prev = [regex]::Match((Get-Content README.md -Raw), '@([\d\.]+)').Groups[1].Value
+foreach ($f in @('README.md') + (Get-Item src/*/README.md)) {
+  (Get-Content $f -Raw) -replace "@$prev", "@$version" | Set-Content $f -NoNewline
+}
+
+# commit here (so that the correct commit hash is source-linked)
+git commit -m "Bump to $version"
+
 dotnet pack -p:PackageVersion=$version
 
 # authenticate to nuget.org (only needed once)
