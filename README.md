@@ -27,7 +27,7 @@ Sets `ImportDirectoryBuildProps` and `ImportDirectoryBuildTargets` to `false`.
 Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 
 ```cs
-#:sdk Isolated.NET.Sdk@1.0.0
+#:sdk Isolated.NET.Sdk@1.0.1
 ```
 
 #### [Isolated.Sdk](https://www.nuget.org/packages/Isolated.Sdk)
@@ -35,7 +35,7 @@ Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 A bare isolation SDK. Import any SDK you want afterwards.
 
 ```cs
-#:sdk Isolated.Sdk@1.0.0
+#:sdk Isolated.Sdk@1.0.1
 // use any SDK you want:
 #:sdk ...
 ```
@@ -52,7 +52,7 @@ foreach ($f in @('README.md') + (Get-Item src/*/README.md)) {
 }
 
 # commit here (so that the correct commit hash is source-linked)
-git commit -m "Bump to $version"
+git commit -am "Bump to $version"
 
 dotnet pack -p:PackageVersion=$version
 
