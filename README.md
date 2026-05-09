@@ -4,10 +4,6 @@ Utilities for file-based apps.
 
 ## Packages
 
-### Isolated
-
-MSBuild SDKs for isolating file-based apps from `Directory.Build.props` and `Directory.Build.targets`.
-
 ### [FileBasedApps](https://www.nuget.org/packages/FileBasedApps)
 
 MSBuild utilities for file-based apps.
@@ -20,6 +16,10 @@ Set `FileBasedAppsIncludeReadme` to `true` to include `README.md` from the app d
 ```
 
 Override `FileBasedAppsReadmeFile` to include a README from a different path.
+
+### Isolated
+
+MSBuild SDKs for isolating file-based apps from `Directory.Build.props` and `Directory.Build.targets`.
 
 #### [Isolated.NET.Sdk](https://www.nuget.org/packages/Isolated.NET.Sdk)
 
