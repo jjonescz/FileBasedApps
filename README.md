@@ -8,6 +8,19 @@ Utilities for file-based apps.
 
 MSBuild SDKs for isolating file-based apps from `Directory.Build.props` and `Directory.Build.targets`.
 
+### [FileBasedApps](https://www.nuget.org/packages/FileBasedApps)
+
+MSBuild utilities for file-based apps.
+
+Set `FileBasedAppsIncludeReadme` to `true` to include `README.md` from the app directory at the package root when packing.
+
+```cs
+#:package FileBasedApps@*
+#:property FileBasedAppsIncludeReadme=true
+```
+
+Override `FileBasedAppsReadmeFile` to include a README from a different path.
+
 #### [Isolated.NET.Sdk](https://www.nuget.org/packages/Isolated.NET.Sdk)
 
 Sets `ImportDirectoryBuildProps` and `ImportDirectoryBuildTargets` to `false`.
@@ -49,5 +62,6 @@ nuget setapikey '<api key here>' -source https://api.nuget.org/v3/index.json
 
 dotnet nuget push artifacts/package/release/Isolated.Sdk.$version.nupkg --source https://api.nuget.org/v3/index.json
 dotnet nuget push artifacts/package/release/Isolated.NET.Sdk.$version.nupkg --source https://api.nuget.org/v3/index.json
+dotnet nuget push artifacts/package/release/FileBasedApps.$version.nupkg --source https://api.nuget.org/v3/index.json
 git tag v$version && git push origin v$version
 ```

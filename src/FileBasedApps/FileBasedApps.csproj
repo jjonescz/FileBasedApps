@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Description>MSBuild utilities for file-based apps.</Description>
+    <NoBuild>true</NoBuild>
+    <NoCompilerStandardLib>true</NoCompilerStandardLib>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>$(PackageTags);msbuild;targets;packing</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="buildTransitive\FileBasedApps.targets" Pack="true" PackagePath="buildTransitive" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

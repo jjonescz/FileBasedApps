@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <FileBasedAppsReadmeFile Condition="'$(FileBasedAppsReadmeFile)' == ''">$(MSBuildProjectDirectory)/README.md</FileBasedAppsReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(FileBasedAppsIncludeReadme)' == 'true' and Exists('$(FileBasedAppsReadmeFile)')">
+    <None Include="$(FileBasedAppsReadmeFile)" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
