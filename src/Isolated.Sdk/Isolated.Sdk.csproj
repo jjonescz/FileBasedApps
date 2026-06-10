@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageType>MSBuildSdk</PackageType>
-    <Description>An MSBuild SDK that isolates projects from Directory.Build.props and Directory.Build.targets.</Description>
+    <Description>An MSBuild SDK that isolates projects from Directory.Build.props, Directory.Packages.props, and Directory.Build.targets.</Description>
     <NoBuild>true</NoBuild>
     <NoCompilerStandardLib>true</NoCompilerStandardLib>
     <NoDefaultExcludes>true</NoDefaultExcludes>

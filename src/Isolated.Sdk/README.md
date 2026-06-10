@@ -1,6 +1,6 @@
 # Isolated.Sdk
 
-An MSBuild SDK that isolates projects from `Directory.Build.props` and `Directory.Build.targets`.
+An MSBuild SDK that isolates projects from `Directory.Build.props`, `Directory.Packages.props`, and `Directory.Build.targets`.
 
 This is a bare isolation SDK — import any SDK you want afterwards.
 

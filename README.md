@@ -19,7 +19,7 @@ Override `FileBasedAppsReadmeFile` to include a README from a different path.
 
 ### Isolated
 
-MSBuild SDKs for isolating file-based apps from `Directory.Build.props` and `Directory.Build.targets`.
+MSBuild SDKs for isolating file-based apps from `Directory.Build.props`, `Directory.Packages.props`, and `Directory.Build.targets`.
 
 #### [Isolated.NET.Sdk](https://www.nuget.org/packages/Isolated.NET.Sdk)
 
