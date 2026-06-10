@@ -27,7 +27,7 @@ Sets `ImportDirectoryBuildProps` and `ImportDirectoryBuildTargets` to `false`.
 Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 
 ```cs
-#:sdk Isolated.NET.Sdk@1.0.1
+#:sdk Isolated.NET.Sdk@1.0.2
 ```
 
 #### [Isolated.Sdk](https://www.nuget.org/packages/Isolated.Sdk)
@@ -35,7 +35,7 @@ Also implicitly imports `Microsoft.NET.Sdk` (the default SDK).
 A bare isolation SDK. Import any SDK you want afterwards.
 
 ```cs
-#:sdk Isolated.Sdk@1.0.1
+#:sdk Isolated.Sdk@1.0.2
 // use any SDK you want:
 #:sdk ...
 ```
