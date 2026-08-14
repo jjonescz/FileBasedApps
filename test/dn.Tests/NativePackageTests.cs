@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security;
 
 namespace Dn.Tests;
@@ -21,10 +22,15 @@ public sealed class NativePackageTests
         string packageDirectory = GetRequiredEnvironmentVariable("DN_TEST_PACKAGE_DIRECTORY");
         string packageVersion = GetRequiredEnvironmentVariable("DN_TEST_PACKAGE_VERSION");
         string runtimeIdentifier = GetRequiredEnvironmentVariable("DN_TEST_RUNTIME_IDENTIFIER");
+        string expectedArchitecture = runtimeIdentifier[(runtimeIdentifier.LastIndexOf('-') + 1)..];
 
         Assert.IsTrue(
             Directory.Exists(packageDirectory),
             $"Package directory '{packageDirectory}' does not exist.");
+        Assert.AreEqual(
+            expectedArchitecture,
+            RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
+            "The test host architecture must match the native package under test.");
 
         using TemporaryDirectory temporaryDirectory = new();
         string appDirectory = temporaryDirectory.CreateDirectory("app");
@@ -89,22 +95,29 @@ public sealed class NativePackageTests
             installResult.ExitCode,
             $"Tool installation failed.{Environment.NewLine}{installResult.StandardOutput}{installResult.StandardError}");
 
-        string executableName = OperatingSystem.IsWindows() ? "dn.exe" : "dn";
-        string storeDirectory = $"{Path.DirectorySeparatorChar}.store{Path.DirectorySeparatorChar}";
-        string[] nativeExecutables = Directory
-            .GetFiles(toolDirectory, executableName, SearchOption.AllDirectories)
-            .Where(path => path.Contains(storeDirectory, StringComparison.Ordinal))
-            .ToArray();
-
+        string storeDirectory = Path.Combine(toolDirectory, ".store", "dn");
+        string[] installedVersionDirectories = Directory.GetDirectories(storeDirectory);
         Assert.HasCount(
             1,
-            nativeExecutables,
-            $"Expected one installed native executable, found: {string.Join(", ", nativeExecutables)}");
-        Assert.Contains(runtimeIdentifier, nativeExecutables[0]);
+            installedVersionDirectories,
+            $"Expected one installed dn version in '{storeDirectory}'.");
+        string installedVersionDirectory = installedVersionDirectories[0];
+        string normalizedVersion = Path.GetFileName(installedVersionDirectory);
+        string nativeExecutable = Path.Combine(
+            installedVersionDirectory,
+            $"dn.{runtimeIdentifier}",
+            normalizedVersion,
+            "tools",
+            "any",
+            runtimeIdentifier,
+            OperatingSystem.IsWindows() ? "dn.exe" : "dn");
+        Assert.IsTrue(
+            File.Exists(nativeExecutable),
+            $"Expected installed native executable '{nativeExecutable}' was not found.");
 
         ProcessStartInfo runStartInfo = new()
         {
-            FileName = nativeExecutables[0],
+            FileName = nativeExecutable,
             UseShellExecute = false,
             WorkingDirectory = callerDirectory,
         };
