@@ -4,6 +4,17 @@ Utilities for file-based apps.
 
 ## Packages
 
+### [dn](https://www.nuget.org/packages/dn)
+
+Run a file-based C# app with SDK discovery rooted at the app file while
+preserving the caller's working directory for the app itself. The tool is
+Native AOT, so starting `dn` does not consult `global.json` in that directory.
+
+```powershell
+dotnet tool install --global dn
+dn file.cs arg0 arg1
+```
+
 ### [FileBasedApps](https://www.nuget.org/packages/FileBasedApps)
 
 MSBuild utilities for file-based apps.
@@ -42,26 +53,19 @@ A bare isolation SDK. Import any SDK you want afterwards.
 
 ## Release
 
-```powershell
-$version='<the next version here (without v prefix)>'
+Run the **Release** workflow manually, enter the package version without a `v` prefix,
+and select one or more package families. The workflow:
 
-# update version in samples and package READMEs
-$prev = [regex]::Match((Get-Content README.md -Raw), '@([\d\.]+)').Groups[1].Value
-foreach ($f in @('README.md') + (Get-Item src/*/README.md)) {
-  (Get-Content $f -Raw) -replace "@$prev", "@$version" | Set-Content $f -NoNewline
-}
+1. updates versioned README examples for the selected packages;
+2. pushes a release commit when those examples changed;
+3. builds and tests the selected packages;
+4. publishes them to NuGet;
+5. creates package-specific tags and GitHub releases, such as `dn-v1.0.0`.
 
-# commit here (so that the correct commit hash is source-linked)
-git commit -am "Bump to $version"
+### One-time release setup
 
-dotnet pack -p:PackageVersion=$version
-
-# authenticate to nuget.org (only needed once)
-winget install microsoft.nuget
-nuget setapikey '<api key here>' -source https://api.nuget.org/v3/index.json
-
-dotnet nuget push artifacts/package/release/Isolated.Sdk.$version.nupkg --source https://api.nuget.org/v3/index.json
-dotnet nuget push artifacts/package/release/Isolated.NET.Sdk.$version.nupkg --source https://api.nuget.org/v3/index.json
-dotnet nuget push artifacts/package/release/FileBasedApps.$version.nupkg --source https://api.nuget.org/v3/index.json
-git tag v$version && git push origin v$version
-```
+1. Create a GitHub environment named `release`, optionally with required reviewers.
+2. Add an environment secret named `NUGET_USER` containing the nuget.org username, not an email address.
+3. At [nuget.org trusted publishing](https://www.nuget.org/account/trustedpublishing), add the corresponding policy.
+4. Allow GitHub Actions to write repository contents. If `main` or tags are protected,
+   allow this workflow to push its optional README commit and package-specific tags.

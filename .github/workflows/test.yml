@@ -1,0 +1,99 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  managed:
+    name: Managed tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore test/dn.Tests/dn.Tests.csproj
+
+      - name: Test
+        run: >
+          dotnet test test/dn.Tests/dn.Tests.csproj
+          --configuration Release
+          --no-restore
+          --filter TestCategory!=NativePackage
+
+  native:
+    name: Native AOT (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: macos-15-intel
+            rid: osx-x64
+          - os: macos-15
+            rid: osx-arm64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack pointer
+        run: >
+          dotnet pack src/dn/dn.csproj
+          --configuration Release
+          -p:PackageVersion=0.0.0-ci.${{ github.run_number }}
+          --output artifacts/packages
+
+      - name: Pack ${{ matrix.rid }}
+        run: >
+          dotnet pack src/dn/dn.csproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          -p:PackageVersion=0.0.0-ci.${{ github.run_number }}
+          --output artifacts/packages
+
+      - name: Test installed native tool
+        env:
+          DN_TEST_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
+          DN_TEST_PACKAGE_VERSION: 0.0.0-ci.${{ github.run_number }}
+          DN_TEST_RUNTIME_IDENTIFIER: ${{ matrix.rid }}
+        run: >
+          dotnet test test/dn.Tests/dn.Tests.csproj
+          --configuration Release
+          --filter TestCategory=NativePackage
