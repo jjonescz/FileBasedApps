@@ -23,10 +23,22 @@ public sealed class NativePackageTests
         string packageVersion = GetRequiredEnvironmentVariable("DN_TEST_PACKAGE_VERSION");
         string runtimeIdentifier = GetRequiredEnvironmentVariable("DN_TEST_RUNTIME_IDENTIFIER");
         string expectedArchitecture = runtimeIdentifier[(runtimeIdentifier.LastIndexOf('-') + 1)..];
+        string? dotnetDirectory = Environment.GetEnvironmentVariable("DN_TEST_DOTNET_DIRECTORY");
+        string dotnetPath = dotnetDirectory is null
+            ? "dotnet"
+            : Path.Combine(
+                dotnetDirectory,
+                OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet");
 
         Assert.IsTrue(
             Directory.Exists(packageDirectory),
             $"Package directory '{packageDirectory}' does not exist.");
+        if (dotnetDirectory is not null)
+        {
+            Assert.IsTrue(
+                File.Exists(dotnetPath),
+                $"Expected dotnet host '{dotnetPath}' was not found.");
+        }
         Assert.AreEqual(
             expectedArchitecture,
             RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
@@ -72,7 +84,7 @@ public sealed class NativePackageTests
 
         ProcessStartInfo installStartInfo = new()
         {
-            FileName = "dotnet",
+            FileName = dotnetPath,
             UseShellExecute = false,
             WorkingDirectory = temporaryDirectory.Path,
         };

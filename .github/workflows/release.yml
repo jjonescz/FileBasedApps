@@ -288,6 +288,8 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    env:
+      DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet-${{ matrix.arch }}
 
     steps:
       - name: Check out release commit
@@ -320,6 +322,7 @@ jobs:
           DN_TEST_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
           DN_TEST_PACKAGE_VERSION: ${{ inputs.version }}
           DN_TEST_RUNTIME_IDENTIFIER: ${{ matrix.rid }}
+          DN_TEST_DOTNET_DIRECTORY: ${{ env.DOTNET_INSTALL_DIR }}
         run: >
           dotnet test test/dn.Tests/dn.Tests.csproj
           --configuration Release
