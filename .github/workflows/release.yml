@@ -407,7 +407,10 @@ jobs:
                   throw "Could not check whether tag '$tag' exists."
               }
 
-              git tag --annotate $tag $env:RELEASE_SHA --message "Release $id $env:VERSION"
+              git `
+                  -c user.name='github-actions[bot]' `
+                  -c user.email='41898282+github-actions[bot]@users.noreply.github.com' `
+                  tag --annotate $tag $env:RELEASE_SHA --message "Release $id $env:VERSION"
               if ($LASTEXITCODE -ne 0) {
                   throw "Could not create tag '$tag'."
               }
