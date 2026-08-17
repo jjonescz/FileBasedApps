@@ -69,8 +69,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet-${{ matrix.arch }}
 
     steps:
       - name: Check out repository
@@ -78,6 +76,8 @@ jobs:
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet-${{ matrix.arch }}
         with:
           dotnet-version: 10.0.x
           architecture: ${{ matrix.arch }}
@@ -102,7 +102,7 @@ jobs:
           DN_TEST_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
           DN_TEST_PACKAGE_VERSION: 0.0.0-ci.${{ github.run_number }}
           DN_TEST_RUNTIME_IDENTIFIER: ${{ matrix.rid }}
-          DN_TEST_DOTNET_DIRECTORY: ${{ env.DOTNET_INSTALL_DIR }}
+          DN_TEST_DOTNET_DIRECTORY: ${{ runner.temp }}/dotnet-${{ matrix.arch }}
         run: >
           dotnet test test/dn.Tests/dn.Tests.csproj
           --configuration Release
