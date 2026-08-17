@@ -60,7 +60,17 @@ public sealed class NativePackageTests
               <packageSources>
                 <clear />
                 <add key="local" value="{SecurityElement.Escape(Path.GetFullPath(packageDirectory))}" />
+                <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
               </packageSources>
+              <packageSourceMapping>
+                <packageSource key="local">
+                  <package pattern="dn" />
+                  <package pattern="dn.*" />
+                </packageSource>
+                <packageSource key="nuget.org">
+                  <package pattern="Microsoft.NETCore.App.Host.*" />
+                </packageSource>
+              </packageSourceMapping>
             </configuration>
             """);
         File.WriteAllText(
@@ -95,6 +105,8 @@ public sealed class NativePackageTests
         installStartInfo.ArgumentList.Add(toolDirectory);
         installStartInfo.ArgumentList.Add("--version");
         installStartInfo.ArgumentList.Add(packageVersion);
+        installStartInfo.ArgumentList.Add("--arch");
+        installStartInfo.ArgumentList.Add(expectedArchitecture);
         installStartInfo.ArgumentList.Add("--configfile");
         installStartInfo.ArgumentList.Add(configPath);
 
