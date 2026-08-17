@@ -105,8 +105,11 @@ public sealed class NativePackageTests
         installStartInfo.ArgumentList.Add(toolDirectory);
         installStartInfo.ArgumentList.Add("--version");
         installStartInfo.ArgumentList.Add(packageVersion);
-        installStartInfo.ArgumentList.Add("--arch");
-        installStartInfo.ArgumentList.Add(expectedArchitecture);
+        if (!OperatingSystem.IsLinux())
+        {
+            installStartInfo.ArgumentList.Add("--arch");
+            installStartInfo.ArgumentList.Add(expectedArchitecture);
+        }
         installStartInfo.ArgumentList.Add("--configfile");
         installStartInfo.ArgumentList.Add(configPath);
 
