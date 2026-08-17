@@ -58,7 +58,7 @@ and select one or more package families. The workflow:
 
 1. updates versioned README examples for the selected packages;
 2. pushes a release commit when those examples changed;
-3. builds and tests the selected packages;
+3. packs the selected packages and runs the native package integration tests for `dn`;
 4. publishes them to NuGet;
 5. creates package-specific tags and GitHub releases, such as `dn-v1.0.0`.
 

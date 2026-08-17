@@ -66,8 +66,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
 
-          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') {
-              throw "Version '$env:VERSION' is not a supported NuGet version."
+          $identifier = '(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)'
+          $versionPattern = "^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-$identifier(?:\.$identifier)*)?$"
+          if ($env:VERSION -notmatch $versionPattern) {
+              throw "Version '$env:VERSION' is not a canonical semantic version."
           }
 
           $selected = [ordered]@{
