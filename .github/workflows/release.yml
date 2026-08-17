@@ -1,0 +1,505 @@
+name: Release
+
+run-name: Release ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version without a v prefix
+        required: true
+        type: string
+      dn:
+        description: Publish dn
+        required: true
+        default: false
+        type: boolean
+      file_based_apps:
+        description: Publish FileBasedApps
+        required: true
+        default: false
+        type: boolean
+      isolated_net_sdk:
+        description: Publish Isolated.NET.Sdk
+        required: true
+        default: false
+        type: boolean
+      isolated_sdk:
+        description: Publish Isolated.Sdk
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release commit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate and prepare release
+        id: release
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          DN: ${{ inputs.dn }}
+          FILE_BASED_APPS: ${{ inputs.file_based_apps }}
+          ISOLATED_NET_SDK: ${{ inputs.isolated_net_sdk }}
+          ISOLATED_SDK: ${{ inputs.isolated_sdk }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $identifier = '(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)'
+          $versionPattern = "^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-$identifier(?:\.$identifier)*)?$"
+          if ($env:VERSION -notmatch $versionPattern) {
+              throw "Version '$env:VERSION' is not a canonical semantic version."
+          }
+
+          $selected = [ordered]@{
+              'dn' = [bool]::Parse($env:DN)
+              'FileBasedApps' = [bool]::Parse($env:FILE_BASED_APPS)
+              'Isolated.NET.Sdk' = [bool]::Parse($env:ISOLATED_NET_SDK)
+              'Isolated.Sdk' = [bool]::Parse($env:ISOLATED_SDK)
+          }
+          $selectedIds = @($selected.GetEnumerator() | Where-Object Value | ForEach-Object Key)
+          if ($selectedIds.Count -eq 0) {
+              throw 'Select at least one package family.'
+          }
+
+          $currentSha = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Could not determine the release commit.'
+          }
+          $existingTags = @{}
+          foreach ($id in $selectedIds) {
+              $tag = "$id-v$env:VERSION"
+              $tagSha = git ls-remote --exit-code origin "refs/tags/$tag^{}" |
+                  ForEach-Object { ($_ -split '\s+')[0] }
+              if ($LASTEXITCODE -eq 0) {
+                  if ($tagSha -ne $currentSha) {
+                      throw "Tag '$tag' points to '$tagSha', not current main '$currentSha'."
+                  }
+                  $existingTags[$id] = $true
+                  continue
+              }
+              if ($LASTEXITCODE -ne 2) {
+                  throw "Could not check whether tag '$tag' exists."
+              }
+          }
+
+          $packageFamilies = [ordered]@{}
+          foreach ($id in $selectedIds) {
+              $packageFamilies[$id] = $id
+          }
+          if ($selected['dn']) {
+              foreach ($rid in 'win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64') {
+                  $packageFamilies["dn.$rid"] = 'dn'
+              }
+          }
+
+          foreach ($entry in $packageFamilies.GetEnumerator()) {
+              $id = $entry.Key
+              $uri = "https://api.nuget.org/v3-flatcontainer/$($id.ToLowerInvariant())/index.json"
+              try {
+                  $versions = (Invoke-RestMethod -Uri $uri).versions
+              }
+              catch {
+                  $responseProperty = $_.Exception.PSObject.Properties['Response']
+                  if ($null -ne $responseProperty -and
+                      $null -ne $responseProperty.Value -and
+                      [int]$responseProperty.Value.StatusCode -eq 404) {
+                      continue
+                  }
+                  throw
+              }
+
+              if (($versions -contains $env:VERSION.ToLowerInvariant()) -and
+                  -not $existingTags.ContainsKey($entry.Value)) {
+                  throw "Package '$id' version '$env:VERSION' already exists on nuget.org."
+              }
+          }
+
+          function Update-SdkVersion([string] $Path, [string] $PackageId) {
+              $content = Get-Content -LiteralPath $Path -Raw
+              $pattern = "(#:sdk $([regex]::Escape($PackageId))@)[^\s]+"
+              if ($content -notmatch $pattern) {
+                  throw "Could not find a $PackageId version reference in '$Path'."
+              }
+              $updated = $content -replace $pattern, "`${1}$env:VERSION"
+              if ($updated -ne $content) {
+                  Set-Content -LiteralPath $Path -Value $updated -NoNewline
+              }
+          }
+
+          if ($selected['Isolated.NET.Sdk']) {
+              Update-SdkVersion 'README.md' 'Isolated.NET.Sdk'
+              Update-SdkVersion 'src/Isolated.NET.Sdk/README.md' 'Isolated.NET.Sdk'
+          }
+          if ($selected['Isolated.Sdk']) {
+              Update-SdkVersion 'README.md' 'Isolated.Sdk'
+              Update-SdkVersion 'src/Isolated.Sdk/README.md' 'Isolated.Sdk'
+          }
+
+          if (git status --short) {
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              git add README.md src/Isolated.NET.Sdk/README.md src/Isolated.Sdk/README.md
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Could not stage the README updates.'
+              }
+              git commit -m "Release $($selectedIds -join ', ') $env:VERSION"
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Could not create the release commit.'
+              }
+              git push origin HEAD:main
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Could not push the release commit to main.'
+              }
+          }
+
+          $releaseSha = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Could not determine the prepared release commit.'
+          }
+          "sha=$releaseSha" >> $env:GITHUB_OUTPUT
+
+  build-standard:
+    name: Build standard packages
+    if: inputs.file_based_apps || inputs.isolated_net_sdk || inputs.isolated_sdk
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack FileBasedApps
+        if: inputs.file_based_apps
+        run: >
+          dotnet pack src/FileBasedApps/FileBasedApps.csproj
+          --configuration Release
+          -p:PackageVersion=${{ inputs.version }}
+          --output artifacts/packages
+
+      - name: Pack Isolated.NET.Sdk
+        if: inputs.isolated_net_sdk
+        run: >
+          dotnet pack src/Isolated.NET.Sdk/Isolated.NET.Sdk.csproj
+          --configuration Release
+          -p:PackageVersion=${{ inputs.version }}
+          --output artifacts/packages
+
+      - name: Pack Isolated.Sdk
+        if: inputs.isolated_sdk
+        run: >
+          dotnet pack src/Isolated.Sdk/Isolated.Sdk.csproj
+          --configuration Release
+          -p:PackageVersion=${{ inputs.version }}
+          --output artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-standard
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: error
+
+  build-dn-pointer:
+    name: Build dn pointer
+    if: inputs.dn
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack pointer
+        run: >
+          dotnet pack src/dn/dn.csproj
+          --configuration Release
+          -p:PackageVersion=${{ inputs.version }}
+          --output artifacts/packages
+
+      - name: Upload pointer package
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-dn-pointer
+          path: artifacts/packages/dn.${{ inputs.version }}.nupkg
+          if-no-files-found: error
+
+  build-dn-native:
+    name: Build dn (${{ matrix.rid }})
+    if: inputs.dn
+    needs:
+      - prepare
+      - build-dn-pointer
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            arch: x64
+          - os: windows-11-arm
+            rid: win-arm64
+            arch: arm64
+          - os: ubuntu-24.04
+            rid: linux-x64
+            arch: x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            arch: arm64
+          - os: macos-15-intel
+            rid: osx-x64
+            arch: x64
+          - os: macos-15
+            rid: osx-arm64
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet-${{ matrix.arch }}
+        with:
+          dotnet-version: 10.0.x
+          architecture: ${{ matrix.arch }}
+
+      - name: Download pointer package
+        uses: actions/download-artifact@v4
+        with:
+          name: packages-dn-pointer
+          path: artifacts/packages
+
+      - name: Pack ${{ matrix.rid }}
+        run: >
+          dotnet pack src/dn/dn.csproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          -p:PackageVersion=${{ inputs.version }}
+          --output artifacts/packages
+
+      - name: Test installed native tool
+        env:
+          DN_TEST_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
+          DN_TEST_PACKAGE_VERSION: ${{ inputs.version }}
+          DN_TEST_RUNTIME_IDENTIFIER: ${{ matrix.rid }}
+          DN_TEST_DOTNET_DIRECTORY: ${{ runner.temp }}/dotnet-${{ matrix.arch }}
+        run: >
+          dotnet test test/dn.Tests/dn.Tests.csproj
+          --configuration Release
+          --filter TestCategory=NativePackage
+
+      - name: Upload RID package
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-dn-${{ matrix.rid }}
+          path: artifacts/packages/dn.${{ matrix.rid }}.${{ inputs.version }}.nupkg
+          if-no-files-found: error
+
+  publish:
+    name: Publish packages
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.build-standard.result == 'success' || needs.build-standard.result == 'skipped') &&
+      (needs.build-dn-pointer.result == 'success' || needs.build-dn-pointer.result == 'skipped') &&
+      (needs.build-dn-native.result == 'success' || needs.build-dn-native.result == 'skipped')
+    needs:
+      - prepare
+      - build-standard
+      - build-dn-pointer
+      - build-dn-native
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          path: artifacts/packages
+          merge-multiple: true
+
+      - name: Create package tags
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+          DN: ${{ inputs.dn }}
+          FILE_BASED_APPS: ${{ inputs.file_based_apps }}
+          ISOLATED_NET_SDK: ${{ inputs.isolated_net_sdk }}
+          ISOLATED_SDK: ${{ inputs.isolated_sdk }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $selected = [ordered]@{
+              'dn' = [bool]::Parse($env:DN)
+              'FileBasedApps' = [bool]::Parse($env:FILE_BASED_APPS)
+              'Isolated.NET.Sdk' = [bool]::Parse($env:ISOLATED_NET_SDK)
+              'Isolated.Sdk' = [bool]::Parse($env:ISOLATED_SDK)
+          }
+
+          foreach ($id in @($selected.GetEnumerator() | Where-Object Value | ForEach-Object Key)) {
+              $tag = "$id-v$env:VERSION"
+              $tagSha = git ls-remote --exit-code origin "refs/tags/$tag^{}" |
+                  ForEach-Object { ($_ -split '\s+')[0] }
+              if ($LASTEXITCODE -eq 0) {
+                  if ($tagSha -ne $env:RELEASE_SHA) {
+                      throw "Tag '$tag' points to '$tagSha', not '$env:RELEASE_SHA'."
+                  }
+                  continue
+              }
+              if ($LASTEXITCODE -ne 2) {
+                  throw "Could not check whether tag '$tag' exists."
+              }
+
+              git tag --annotate $tag $env:RELEASE_SHA --message "Release $id $env:VERSION"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Could not create tag '$tag'."
+              }
+              git push origin "refs/tags/$tag"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Could not push tag '$tag'."
+              }
+          }
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish packages
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          DN: ${{ inputs.dn }}
+          FILE_BASED_APPS: ${{ inputs.file_based_apps }}
+          ISOLATED_NET_SDK: ${{ inputs.isolated_net_sdk }}
+          ISOLATED_SDK: ${{ inputs.isolated_sdk }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = 'https://api.nuget.org/v3/index.json'
+
+          function Push-Package([string] $PackageId) {
+              $path = "artifacts/packages/$PackageId.$env:VERSION.nupkg"
+              if (-not (Test-Path -LiteralPath $path)) {
+                  throw "Expected package '$path' was not downloaded."
+              }
+              dotnet nuget push $path `
+                  --api-key $env:NUGET_API_KEY `
+                  --source $source `
+                  --skip-duplicate
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Publishing '$path' failed with exit code $LASTEXITCODE."
+              }
+          }
+
+          if ([bool]::Parse($env:FILE_BASED_APPS)) { Push-Package 'FileBasedApps' }
+          if ([bool]::Parse($env:ISOLATED_NET_SDK)) { Push-Package 'Isolated.NET.Sdk' }
+          if ([bool]::Parse($env:ISOLATED_SDK)) { Push-Package 'Isolated.Sdk' }
+          if ([bool]::Parse($env:DN)) {
+              foreach ($rid in 'win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64') {
+                  Push-Package "dn.$rid"
+              }
+              Push-Package 'dn'
+          }
+
+      - name: Create GitHub releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+          DN: ${{ inputs.dn }}
+          FILE_BASED_APPS: ${{ inputs.file_based_apps }}
+          ISOLATED_NET_SDK: ${{ inputs.isolated_net_sdk }}
+          ISOLATED_SDK: ${{ inputs.isolated_sdk }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $selected = [ordered]@{
+              'dn' = [bool]::Parse($env:DN)
+              'FileBasedApps' = [bool]::Parse($env:FILE_BASED_APPS)
+              'Isolated.NET.Sdk' = [bool]::Parse($env:ISOLATED_NET_SDK)
+              'Isolated.Sdk' = [bool]::Parse($env:ISOLATED_SDK)
+          }
+
+          foreach ($id in @($selected.GetEnumerator() | Where-Object Value | ForEach-Object Key)) {
+              $tag = "$id-v$env:VERSION"
+              [string[]] $files = if ($id -eq 'dn') {
+                  Get-ChildItem "artifacts/packages/dn.$env:VERSION.nupkg", "artifacts/packages/dn.*.$env:VERSION.nupkg" |
+                      ForEach-Object FullName
+              }
+              else {
+                  (Resolve-Path "artifacts/packages/$id.$env:VERSION.nupkg").Path
+              }
+
+              gh release view $tag *> $null
+              if ($LASTEXITCODE -eq 0) {
+                  gh release upload $tag @files --clobber
+              }
+              else {
+                  gh release create $tag @files `
+                      --target $env:RELEASE_SHA `
+                      --title "$id $env:VERSION" `
+                      --generate-notes
+              }
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Creating GitHub release '$tag' failed with exit code $LASTEXITCODE."
+              }
+          }

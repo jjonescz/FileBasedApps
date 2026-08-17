@@ -1,7 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/dn/dn.csproj" />
     <Project Path="src/FileBasedApps/FileBasedApps.csproj" />
     <Project Path="src/Isolated.NET.Sdk/Isolated.NET.Sdk.csproj" />
     <Project Path="src/Isolated.Sdk/Isolated.Sdk.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/dn.Tests/dn.Tests.csproj" />
   </Folder>
 </Solution>
